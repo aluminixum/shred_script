@@ -11,7 +11,7 @@ tgt="$1"
 
 # get file size (byte)
 echo "get size..."
-tsize=`wc -c "$1"|cut -f 1 -d " "`
+tsize=`wc -c "$1"|awk '{print $1}'`
 echo "$tsize byte"
 
 # calc dd count
