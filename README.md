@@ -1,7 +1,7 @@
 # やけくそファイルシュレッダー
 yakekuso(desperation) file shredder script.
 
-説明できるほどのモノができてない。
+説明できるほどのモノができてない。\n
 I haven't made enough stuff to explain it.
 
 
