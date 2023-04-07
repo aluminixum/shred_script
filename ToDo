@@ -1,0 +1,63 @@
+1 CDなど1回しか書き込めないメディアへの上書き処理
+
+2 破損やバッドブロックになってしまった領域への書き込み
+
+3 各処理でのsyncと確認
+    3-1 メモリ上のキャッシュ削除(mfree.sh参照)
+        "sync;echo3>/proc/sys/vm/drop_caches"
+    3-2 キャッシュを使わないで書き込む
+        oflag=direct
+        nocacheフラグより確実
+    3-3 ファイルを切り詰めないためのフラグ
+        conv=notrunc
+    3-4 その他フラグ
+        oflag=sync,direct
+        conv=notrunc,fsync,noerror
+
+4 エラーセクタへの書き込み
+    4-1 上記のnoerrorフラグ
+
+5 ブロックサイズの取得方法
+    5-1 ブロックデバイスが宛先の場合はif分岐で of=/dev/target に
+    5-2 セクターサイズの取得は fdisk の physical をとってくる
+        5-2-1 example
+            Disk /dev/sda: 363.64 MiB, 381300736 bytes, 744728 sectors 
+            Disk model: Virtual Disk
+            Units: sectors of 1 * 512 = 512 bytes
+            Sector size (logical/physical): 512 bytes / 512 bytes  <--- この行の右側
+            I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+6 inode番号の取得
+    6-1 'ls -li' で取得
+    6-2 ディレクトリにもinodeは割り振られているが、ddでは直接書けない
+        6-2-1 'ls -li `find ./$target -type f`|cut -f 1 -d " "' でファイルごとのinodeを取得
+        6-2-2 ファイル削除はシュレッドしたファイル毎に都度削除
+
+7 sudo対応
+    7-1 他の人のスクリプトやソースコードを見て実装
+
+8 進捗表示
+    8-1 dd のオプション 'status=progress' で表示
+    8-2 killシグナルで表示も検討
+
+9 処理回数の指定
+    9-1 処理の関数化時に引数として実装(初期値は各1回)
+
+10 既存の知られている方法の実装
+    10-1 各々の処理方法を確認して、ddコマンドでの書き込みに置き換える
+
+11 確実にCoreパッケージのみで動作するか確認
+    11-1 UbuntuやSuseなどの他環境とArchのbaseパッケージのみの状態で確認
+    11-2 コアパッケージについてはArchWikiの'Core utilities'を参照 URL='https://wiki.archlinux.jp/index.php/Core_utilities'
+
+12 外部スクリプトとの連帯
+    12-1 標準出力の方法指定だけでなくファイル出力もできるようにする(json,xmlなど)
+
+13 ヘルプ内容
+    13-1 help1\t内容のようなタブを使って崩れないようにする
+    13-2 ヘルプが長くなるようだったら'fullhelp'のような引数も導入
+
+14 GUIについて
+    14-1 そもそも実装しない方針で
+    14-2 GUIはメインのスクリプトとは別に書く
+    14-3 出来る限りこっちもライブラリに依存しないようにする
