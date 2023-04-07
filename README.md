@@ -1,2 +1,4 @@
-# shred_script
-yakekuso file shredder script.
+# やけくそファイルシュレッダー
+yakekuso(desperation) file shredder script.
+
+説明できるほどのモノができてない。
