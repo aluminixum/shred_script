@@ -2,7 +2,9 @@
 yakekuso(desperation) file shredder script.
 
 説明できるほどのモノができてない。<br>
-I haven't made enough stuff to explain it.
+I haven't made enough stuff to explain it.<br>
+<br>
+GNU Core utilitiesで動くものを作ってます。
 <br>
 <br>
 <br>

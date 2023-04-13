@@ -1,8 +1,20 @@
 #!/bin/bash
-# エラーが出た時点で終了するためのもの(最終手段)
+
+# 想定外のエラーが出た時点で終了するためのもの(最終手段)
 # -e で有効化
 # +e で無効化
 set -e
+
+
+# sudoのバージョン情報をnullに投げて処理
+# 追記:sudoがコアパッケージになかったのでコメントアウト
+# root環境での実行する想定
+# sudo -V > /dev/null 2>&1
+
+
+# 区切り文字を改行のみにする（デフォルトはスペース、タブ、改行）
+# default IFS=$' \t\n' 
+IFS=$'\n'
 
 
 # usage
@@ -23,18 +35,19 @@ fi
 tgt="$1"
 
 
-# sudoのバージョン情報をnullに投げる
-sudo -V > /dev/null 2>&1
-
-
-# check file or block 0:block 1:file
-# ファイルとブロックデバイスの確認(ディレクトリもここ？)
+# check file or block 0:block 1:file&dir
+# ファイルとブロックデバイスの確認
+# ディレクトリの場合は1で
+# 'find $tgt'で階層内のファイルを取得
 echo ""
 test -b "$tgt"
-if [ $? != 0 ]; then
-    tgttype=1
+if [ $? -eq 0 ]; then
+    tgt_type=0
+elif [ $? -eq 1]; then
+    tgt_type=1
 else
-    tgttype=0
+    echo "### ERROR ###"
+    exit 1
 fi
 
 # other dd options
@@ -42,6 +55,9 @@ fi
 ddopt="oflag=direct,sync conv=notrunc,noerror,fsync status=progress"
 
 ### ここまで共通
+
+if [ $tgt_type -eq 0 ]; then
+    
 
 ### ここからファイル向け
 
