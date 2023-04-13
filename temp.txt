@@ -1,0 +1,4 @@
+1. sudoで実行するサンプル
+    1-1 sudoに標準入力する場合
+        echo password|sudo -S
+        'https://keens.github.io/blog/2015/06/17/shell_scriptwokakutokinikiwotsuketaikoto/'
