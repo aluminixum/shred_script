@@ -1,0 +1,16 @@
+dd
+fdisk
+tr
+echo
+grep
+cut
+expr
+sync
+id
+df
+wc
+awk
+test "[]で省略"
+head
+hexdump
+find
