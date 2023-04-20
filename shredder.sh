@@ -160,7 +160,7 @@ function file_and_dir(){
         rm -i $ftgt
     elif [ $f_or_d -eq 1 ];then
         # findでファイルのみ表示
-        for inode_num in `find ./fake_mac/ -type f`;do
+        for inode_num in `find "$ftgt" -type f`;do
             file_shred $inode_num
         done
         rm -r -i "$ftgt"
