@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # 想定外のエラーが出た時点で終了するためのもの(最終手段)
 # -e で有効化
 # +e で無効化
-set -e
+#set -e
 
 # sudoのバージョン情報をnullに投げて処理
 # 追記:sudoがコアパッケージになかったのでコメントアウト
@@ -35,43 +35,34 @@ fi
 
 # target
 # 第1引数で取得
-tgt="$1"
-
-# check file or block 0:block 1:file&dir
-# ファイルとブロックデバイスの確認
-# ディレクトリの場合は1で
-# 'find $tgt'で階層内のファイルを取得
-echo ""
-tge_type=$(test -b "$tgt")
-if [ $tgt_type -eq 0 ]; then
-  #tgt_type=0
-  block_delete "$tgt"
-elif [ $tgt_type -eq 1 ]; then
-  #tgt_type=1
-  file_and_dir "$tgt"
-else
-  echo "### ERROR ###"
-  exit 1
-fi
+# tgt="$1"
 
 # other dd options
 # ToDoに書いたオプションまとめ
-ddopt="oflag=direct,sync conv=notrunc,noerror,fsync status=progress"
+# ddopt='oflag=nocache conv=notrunc,noerror,fsync status=progress'
+ddoopt='oflag=nocache,sync'
+# ddoopt='oflag=direct,sync'
+ddcopt='conv=notrunc,noerror,fsync'
+ddprog='status=progress'
 
 ### ここまで共通
 
-# shred script main
+# shredder
 # ファイル単位での消去は共通なので
 # ファイル位置かinode番号を引数で受け取る
 function file_shred() {
   # ファイル位置パスを引数で受け取る
-  local tfile="$1"
+  local tfile="$tgt"
 
   # ファイルの格納されてるドライブを確認
   tgt_dev=$(df $tgt | grep "/dev" | cut -f 1 -d " ")
-
-  # デバイスのブロックサイズ(論理ではなく物理)を取得
-  ddbs=$(cat /sys/block/$tgt_dev/queue/physical_block_size)
+  if [ -z $tgt_dev ]; then
+    # tmpfsやdrvfsなどの場合
+    ddbs=512
+  else
+    # デバイスのブロックサイズ(論理ではなく物理)を取得
+    ddbs=$(cat /sys/block/$tgt_dev/queue/physical_block_size)
+  fi
 
   # get file size (byte)
   # ファイルサイズは取得出来るのでブロックサイズでの余りを足せばいい？
@@ -90,7 +81,7 @@ function file_shred() {
   # メモリ上のキャッシュ削除
   echo "delete cache data..."
   sync && echo 3 > /proc/sys/vm/drop_caches
-  dd of="$tgt" $ddopt count=0 > /dev/null 2>&1
+  dd of="$tfile" $ddoopt $ddcopt $ddprog count=0 > /dev/null 2>&1
 
   # ここから下は関数化してループ処理をつくる
   # start dd shredder
@@ -98,40 +89,40 @@ function file_shred() {
 
   # Using /dev/urandom
   echo "write:random"
-  dd if=/dev/urandom of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  dd if=/dev/urandom of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
 
   # Output 20 lines from the head
   hexdump -C "$tgt" | head -n 20
 
   # /dev/zero
   echo "write:0x00"
-  dd if=/dev/zero of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  dd if=/dev/zero of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   # パターンでの処理はそれぞれ関数化して番号を割り振って引数として受け取る
   # 000を273(oct)で置換して書き込み
   echo "write:0xBB"
-  tr "\000" "\273" < /dev/zero | dd of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  tr "\000" "\273" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   echo "write:0x33"
-  tr "\000" "\063" < /dev/zero | dd of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  tr "\000" "\063" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   echo "write:0xFF"
-  tr "\000" "\377" < /dev/zero | dd of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  tr "\000" "\377" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   echo "write:0x77"
-  tr "\000" "\167" < /dev/zero | dd of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  tr "\000" "\167" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   echo "write:random"
-  dd if=/dev/urandom of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  dd if=/dev/urandom of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
 
   echo "write:0x00"
-  dd if=/dev/zero of="$tgt" bs=$ddbs count=$ddcount $ddopt > /dev/null 2>&1
+  dd if=/dev/zero of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   hexdump -C "$tgt" | head -n 20
   sync
 }
@@ -141,16 +132,20 @@ function file_shred() {
 # ファイル向け関数
 function file_and_dir() {
   # local変数としてtmode(FileTarGeT)に第1引数の$1を代入
-  local ftgt="$1"
+  ftgt=$(echo $tloc/$ttgt)
+
   # ファイルかフォルダか判断
-  f_or_d=$(test -d "$ftgt")
-  if [ $f_or_d -eq 0 ]; then
+  f_or_d=$(
+    test -d "$tgt"
+    echo $?
+  )
+  if [ $f_or_d -eq 1 ]; then
     # 'ls -i'でinode番号を表示
     # 'cut -f 1 -d " "'でinode番号のみ変数へ
     inode_num=$(ls -i "$ftgt" | cut -f 1 -d " ")
     file_shred $inode_num
     rm -i $ftgt
-  elif [ $f_or_d -eq 1 ]; then
+  elif [ $f_or_d -eq 0 ]; then
     # findでファイルのみ表示
     for inode_num in $(find "$ftgt" -type f); do
       file_shred $inode_num
@@ -217,6 +212,32 @@ function block_delete() {
 }
 
 ### ここまでブロックデバイス向け
+
+### main
+# check file or block 0:block 1:file&dir
+# ファイルとブロックデバイスの確認
+# ディレクトリの場合は1で
+# 'find $tgt'で階層内のファイルを取得
+
+tloc=`pwd -P`
+ttgt="$1"
+tgt=`echo $tloc/$ttgt`
+
+echo ""
+tgt_type=$(
+  test -b "$tgt"
+  echo $?
+)
+if [ $tgt_type -eq 0 ]; then
+  #tgt_type=0
+  block_delete "$tgt"
+elif [ $tgt_type -eq 1 ]; then
+  #tgt_type=1
+  file_and_dir "$tgt"
+else
+  echo "### ERROR ###"
+  exit 1
+fi
 
 ### 終了処理
 
