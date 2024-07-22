@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/bash -x
 
 # 想定外のエラーが出た時点で終了するためのもの(最終手段)
 # -e で有効化
@@ -52,16 +52,18 @@ ddprog='status=progress'
 # ファイル位置かinode番号を引数で受け取る
 function file_shred() {
   # ファイル位置パスを引数で受け取る
-  local tfile="$tgt"
+  local tfile="$1"
 
   # ファイルの格納されてるドライブを確認
-  tgt_dev=$(df $tgt | grep "/dev" | cut -f 1 -d " ")
-  if [ -z $tgt_dev ]; then
+  tgt_dev=$(df $tfile | grep "/dev" | cut -f 1 -d " "|rev|sed -e "s/[0-9]//g"|cut -f 1 -d "/"|rev)
+  if [ -e "$tgt_dev" ]; then
     # tmpfsやdrvfsなどの場合
-    ddbs=512
+    #ddbs=512
+    ddbs=$(cat /sys/block/"$tgt_dev"/queue/physical_block_size)
   else
     # デバイスのブロックサイズ(論理ではなく物理)を取得
-    ddbs=$(cat /sys/block/$tgt_dev/queue/physical_block_size)
+    #ddbs=$(cat /sys/block/$tgt_dev/queue/physical_block_size)
+    ddbs=512
   fi
 
   # get file size (byte)
@@ -92,38 +94,38 @@ function file_shred() {
   dd if=/dev/urandom of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
 
   # Output 20 lines from the head
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   # /dev/zero
   echo "write:0x00"
   dd if=/dev/zero of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   # パターンでの処理はそれぞれ関数化して番号を割り振って引数として受け取る
   # 000を273(oct)で置換して書き込み
   echo "write:0xBB"
   tr "\000" "\273" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0x33"
   tr "\000" "\063" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0xFF"
   tr "\000" "\377" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0x77"
   tr "\000" "\167" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:random"
   dd if=/dev/urandom of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0x00"
   dd if=/dev/zero of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
   sync
 }
 
@@ -132,23 +134,23 @@ function file_shred() {
 # ファイル向け関数
 function file_and_dir() {
   # local変数としてtmode(FileTarGeT)に第1引数の$1を代入
-  ftgt=$(echo $tloc/$ttgt)
+  ftgt="$1"
 
   # ファイルかフォルダか判断
   f_or_d=$(
-    test -d "$tgt"
+    test -d "$ftgt"
     echo $?
   )
   if [ $f_or_d -eq 1 ]; then
     # 'ls -i'でinode番号を表示
     # 'cut -f 1 -d " "'でinode番号のみ変数へ
-    inode_num=$(ls -i "$ftgt" | cut -f 1 -d " ")
-    file_shred $inode_num
-    rm -i $ftgt
+    # inode_num=$(ls -i "$ftgt" | cut -f 1 -d " ")
+    file_shred "$ftgt"
+    rm -i "$ftgt"
   elif [ $f_or_d -eq 0 ]; then
     # findでファイルのみ表示
-    for inode_num in $(find "$ftgt" -type f); do
-      file_shred $inode_num
+    for files in $(find "$ftgt" -type f); do
+      file_shred "$files"
     done
     rm -r -i "$ftgt"
   else
@@ -161,6 +163,15 @@ function file_and_dir() {
 ### ここからsdaなどブロックデバイス向け
 
 function block_delete() {
+  if [ -e "$tgt_dev" ]; then
+    # tmpfsやdrvfsなどの場合
+    #ddbs=512
+    ddbs=$(cat /sys/block/"$tgt_dev"/queue/physical_block_size)
+  else
+    # デバイスのブロックサイズ(論理ではなく物理)を取得
+    #ddbs=$(cat /sys/block/$tgt_dev/queue/physical_block_size)
+    ddbs=512
+  fi
   # delete cache
   # メモリ上のキャッシュ削除
   echo "delete cache data..."
@@ -176,38 +187,38 @@ function block_delete() {
   dd if=/dev/urandom of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
 
   # Output 20 lines from the head
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   # /dev/zero
   echo "write:0x00"
   dd if=/dev/zero of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   # パターンでの処理はそれぞれ関数化して番号を割り振って引数として受け取る
   # 000を273(oct)で置換して書き込み
   echo "write:0xBB"
   tr "\000" "\273" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   echo "write:0x33"
   tr "\000" "\063" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   echo "write:0xFF"
   tr "\000" "\377" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   echo "write:0x77"
   tr "\000" "\167" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   echo "write:random"
   dd if=/dev/urandom of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
 
   echo "write:0x00"
   dd if=/dev/zero of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  hexdump -C "$tgt" | head -n 20
+  head -c "$ddbs" "$tgt"|od -Ax -tx1z
   sync
 }
 
@@ -223,7 +234,12 @@ tloc=`pwd -P`
 ttgt="$1"
 tgt=`echo $tloc/$ttgt`
 
+
 echo ""
+if [ ! -e $tgt ]; then
+    tgt="$1"
+fi
+
 tgt_type=$(
   test -b "$tgt"
   echo $?
