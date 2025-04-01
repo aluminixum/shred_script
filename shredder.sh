@@ -1,9 +1,9 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # 想定外のエラーが出た時点で終了するためのもの(最終手段)
 # -e で有効化
 # +e で無効化
-#set -e
+set -e
 
 # sudoのバージョン情報をnullに投げて処理
 # 追記:sudoがコアパッケージになかったのでコメントアウト
@@ -13,7 +13,7 @@
 # 'id -u'でuidが0でのみ実行、
 # それ以外の場合はエラーメッセージ出力(仮)
 if [ $(id -u) -ne 0 ]; then
-  echo "error"
+  echo "error : root user only"
   exit 1
 fi
 
@@ -103,12 +103,25 @@ function file_shred() {
 
   # パターンでの処理はそれぞれ関数化して番号を割り振って引数として受け取る
   # 000を273(oct)で置換して書き込み
-  echo "write:0xBB"
-  tr "\000" "\273" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+
+  echo "write:0x55"
+  tr "\000" "\125" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xAA"
+  tr "\000" "\252" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xFF"
+  tr "\000" "\377" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0x33"
   tr "\000" "\063" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xCC"
+  tr "\000" "\314" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0xFF"
@@ -117,6 +130,14 @@ function file_shred() {
 
   echo "write:0x77"
   tr "\000" "\167" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xEE"
+  tr "\000" "\356" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xFF"
+  tr "\000" "\377" < /dev/zero | dd of="$tfile" bs=$ddbs count=$ddcount $ddoopt $ddcopt $ddprog > /dev/null 2>&1
   head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:random"
@@ -196,21 +217,42 @@ function block_delete() {
 
   # パターンでの処理はそれぞれ関数化して番号を割り振って引数として受け取る
   # 000を273(oct)で置換して書き込み
-  echo "write:0xBB"
-  tr "\000" "\273" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  head -c "$ddbs" "$tgt"|od -Ax -tx1z
+  
+  echo "write:0x55"
+  tr "\000" "\125" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
-  echo "write:0x33"
-  tr "\000" "\063" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  head -c "$ddbs" "$tgt"|od -Ax -tx1z
+  echo "write:0xAA"
+  tr "\000" "\252" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0xFF"
   tr "\000" "\377" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  head -c "$ddbs" "$tgt"|od -Ax -tx1z
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0x33"
+  tr "\000" "\063" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xCC"
+  tr "\000" "\314" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xFF"
+  tr "\000" "\377" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:0x77"
   tr "\000" "\167" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
-  head -c "$ddbs" "$tgt"|od -Ax -tx1z
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xEE"
+  tr "\000" "\356" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
+
+  echo "write:0xFF"
+  tr "\000" "\377" < /dev/zero | dd of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
+  head -c "$ddbs" "$tfile"|od -Ax -tx1z
 
   echo "write:random"
   dd if=/dev/urandom of="$tgt" bs=$ddbs $ddopt > /dev/null 2>&1
